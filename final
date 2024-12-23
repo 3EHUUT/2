@@ -1,0 +1,1216 @@
+//212-Simonov-Artem
+#include <iostream> //standartnie potoki vvoda i vivoda
+#include <fstream> //rabota s failami
+#include <vector> //konteiner vector dlya dinamicheskogo massiva
+#include <map> //konteiner std::map, pomogaet nam vipolnyat operacii poiska, vstavki i udaleniya po kluchu
+#include <cmath> //math functions
+#include <string> //dlya raboti so strokami
+#include <tuple> //dlya raboti s kortezhami, pozvolyaet hranit neskolko znacheniy v odnoy peremennoy i izvlekat ih po indexu
+#include <sstream> //strokovie potoki, pomogaet preobrazovivat stroki v drugie tipi dannyh
+#include <ctime> //data i vremya
+#include <chrono> //vremya s visokoy tochnostyu
+#include <iomanip> //formatirovanie vvoda i vivoda, mojno zadavat shirinu poley, kolichestvo znakov posle zapyatoy i td
+#include <thread> //dlya raboti s mnogopotochnostyu
+#include <functional> //std::function dlya spiska
+#include <stdexcept> //dlya obrabotki oshibok
+#include <algorithm> //algoritmi dlya raboti s konteinerami: sortirovka, poisk, preobrazovanie
+#include <limits> //predelnie znacheniya tipov dannyh
+#include <queue> //dlya raboti s ocheredyami, structures FIFO (first-in-first-out), nuzhna dlya wave
+#include <cstdlib>
+#include <unordered_set>
+#include <random>
+
+#pragma pack(push, 1) //viravnivanie structuri dannyh v pamyati
+//push sohranyaet tekushee sostoyanie viravnivaniya v stek
+
+//212-Simonov-Artem
+std::string getCurrentTime() {
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    auto local_time = *std::localtime(&time_t_now);
+
+    std::ostringstream oss;
+    oss << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
+
+auto now = std::chrono::system_clock::now();
+std::time_t time_now = std::chrono::system_clock::to_time_t(now);
+std::tm *ltm = std::localtime(&time_now);
+
+
+//212-Simonov-Artem
+struct BMPInfoHeader {
+    uint32_t biSize = sizeof(BMPInfoHeader); //razmer samoy structuri
+    int32_t biWidth; //shirina kartinki v pixelyah
+    int32_t biHeight; //visota kartinki v pixelyah, otricatelnoe znachenie chtobi bilo pravilnoe otobrazhenie
+    uint16_t biPlanes = 1; //kolichestvo ploskostey
+    uint16_t biBitCount = 24; //kolichestvo bit na 1 pixel (RGB)
+    uint32_t biCompression = 0; //tip sjatiya
+    uint32_t biSizeImage = 0; //razmer kartinki v baitah
+    int32_t biXPelsPerMeter = 0; //gorizontalnoe razreshenie
+    int32_t biYPelsPerMeter = 0; //vertikalnoe razreshenie
+    uint32_t biClrUsed = 0; //kolichestvo ispolzuemih cvetov
+    uint32_t biClrImportant = 0; //kolichestvo vazhnix cvetov
+}; //struct for information ob izobrazhenii
+
+struct BMPHeader {
+    uint16_t bfType = 0x4D42; // 'BM' , opredelyaet tip faila, 0x4D42 v 16-richnom predstavlenii
+    uint32_t bfSize; //razmer faila v baitah
+    uint16_t bfReserved1 = 0; //zarezervirovan i = 0
+    uint16_t bfReserved2 = 0; //zarezervirovan i = 0
+    uint32_t bfOffBits = sizeof(BMPHeader) + sizeof(BMPInfoHeader); //eto pole pokazivaet gde nachinaetsya bitoviy massiv otnositelno nachala faila, kotoriy i opisivaet kartinku
+}; //struct for zagolovok BMP
+
+#pragma pack(pop)
+//vosstanavlivaet predidushee sostoyanie
+
+
+//212-Simonov-Artem
+class Gauss {
+public:
+    double h, x0, y0, sigma_x, sigma_y;
+
+    // konstructor
+    Gauss(double h, double x0, double y0, double sigma_x, double sigma_y)
+        : h(h), x0(x0), y0(y0), sigma_x(sigma_x), sigma_y(sigma_y) {}
+
+
+         const std::vector<std::vector<double>>& getMatrix() const {
+        return matrix;
+    }
+
+    // destructor
+    ~Gauss() {
+    }
+
+    private:
+    std::vector<std::vector<double>> matrix;
+}; //realizaciya klassa gauss s 5 atributami
+
+//212-Simonov-Artem
+class Field {
+public:
+    int length, width;
+    std::vector<std::vector<double>> pixels;
+
+    Field(int length, int width) : length(length), width(width) {
+        pixels.resize(length, std::vector<double>(width, 0.0)); //resize(n) ostavlyaet v vectore pervie n elementov
+    }
+
+     ~Field() {
+        }
+         // Metod dlya ochistki polya
+    void clear() {
+        for (auto& row : pixels) {
+            std::fill(row.begin(), row.end(), 0);
+        }
+    }
+}; //sozdaetsya matrica razmera lenght * wight, kotoruy mi zapolnyaem 0
+
+//212-Simonov-Artem
+//class dlya raboti s config failom
+class Config {
+private:
+    std::string logFileName;
+    std::map<std::string, std::string> settings;
+
+public:
+    //konstructor
+    Config(const std::string& configFile) {
+        loadConfig(configFile); //zagruzhaet nastroyki is ukazannogo faila
+        logFileName = get("logFileName", "logInterface.txt");
+        std::ofstream logFile(logFileName, std::ios::app);
+        if (logFile.is_open()) {
+            logFile << getCurrentTime() << "Config loaded successfully.\n";
+            logFile.close();
+        }
+    }
+
+    std::string get(const std::string& key, const std::string& defaultValue = "") const {
+        auto it = settings.find(key);
+        return (it != settings.end()) ? it->second : defaultValue;
+    }
+
+    void loadConfig(const std::string& configFile) {
+        std::ifstream file(configFile);
+        if (!file.is_open()) {
+            throw std::runtime_error("Error: Unable to open config file: " + configFile);
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            auto pos = line.find('=');
+            if (pos != std::string::npos) {
+                std::string key = line.substr(0, pos);
+                std::string value = line.substr(pos + 1);
+                settings[key] = value;
+            }
+        }
+        file.close();
+    }
+
+    std::map<std::string, std::string> readConfig(const std::string& configFile) {
+    std::map<std::string, std::string> config;
+    std::ifstream file(configFile);
+    if (!file) {
+        std::cerr << "Oshibka: Unable to open config file.\n";
+        return config;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        auto delimiterPos = line.find('=');
+        if (delimiterPos != std::string::npos) {
+            std::string key = line.substr(0, delimiterPos);
+            std::string value = line.substr(delimiterPos + 1);
+            config[key] = value;
+        }
+    }
+    return config;
+}
+};
+
+//212-Simonov-Artem
+//class dlya najhatiya enter
+class UserInteraction {
+public:
+    // Konstructor
+    UserInteraction() {
+        std::cout << "UserInteraction object created.\n";
+    }
+
+    // Destructor
+    ~UserInteraction() {
+        std::cout << "UserInteraction object destroyed.\n";
+    }
+
+    // Metod dlya nazhatiya klavishi
+    void waitForKeyPress() {
+        std::cout << "Press Enter to continue...\n";
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // ignoriruem predidushie dannie
+        std::cin.get(); // jdem Enter
+    }
+};
+
+//212-Simonov-Artem
+//class dlya raboti s polem
+class FieldManager {
+public:
+    // Konstructor
+    FieldManager() {
+        std::cout << "FieldManager object created.\n";
+    }
+
+    // destructor
+    ~FieldManager() {
+        std::cout << "FieldManager object destroyed.\n";
+    }
+
+    // Metod inicializacii polya
+    void init(Field*& field, int length, int width, bool& isInitialized) {
+        if (isInitialized) {
+            std::cerr << "Error: Field is already initialized. Cannot initialize again.\n";
+            return;
+        }
+
+        field = new Field(length, width); // sozdaem novoe pole (esli ono eshe ne soazdano), new nuzhen dlya dinamicheskogo videleniya pamyati
+        isInitialized = true; // ustanavlivaem flag inicializacii
+
+        std::cout << "Field initialized with size " << length << "x" << width << ".\n";
+    }
+};
+
+//212-Simonov-Artem
+//structura dlya odnonapravlennogo spiska gaussov
+struct GaussNode {
+    Gauss data;          // dannie uzla tipa Gauss
+    GaussNode* next;     // ukazatel na sleduyshiy uzel
+
+    GaussNode(const Gauss& gauss) : data(gauss), next(nullptr) {} //konstructor
+};
+
+//212-Simonov-Artem
+//dlya spiska
+class SinglyLinkedList {
+private:
+    GaussNode* head;  // ukazatel na 1 uzel spiska
+
+public:
+    SinglyLinkedList() : head(nullptr) {} //tut spisok pust
+
+   //destructor
+    ~SinglyLinkedList() {
+        while (head) {
+            GaussNode* temp = head;
+            head = head->next;
+            delete temp; // udalyaem uzli spiska
+        }
+    }
+
+    // metod dobavleniya elementa v konec spiska
+    void add(const Gauss& gauss) {
+        GaussNode* newNode = new GaussNode(gauss); //sozdaetsya noviy uzel s peredannimi dannimi
+        if (!head) {
+            head = newNode; // esli spisok pust, ustanavlivaem noviy uzel kak golovu
+        } else {
+            GaussNode* current = head;
+            while (current->next) {
+                current = current->next;
+            }
+            current->next = newNode; // dobavlyaem noviy uzel v konec spiska
+        }
+    }
+
+    // iteraciya po spisku (tolko dlya chteniya)
+       //metod forEach pozvolyaet poschitat zadannuyu funciyu dlya kajdogo elementa spiska (formula gaussa)
+       //funciya prinimaetsya kak argument
+       //perebiraem vse uzli
+        void forEach(std::function<void(const Gauss&)> func) const {
+        GaussNode* current = head;
+        while (current) {
+            func(current->data);
+            current = current->next;
+        }
+    }
+
+    class Iterator {
+    private:
+        GaussNode* current;
+
+    public:
+        explicit Iterator(GaussNode* node) : current(node) {}
+
+        const Gauss& operator*() const { return current->data; }
+        Iterator& operator++() {
+            current = current->next;
+            return *this;
+        }
+        bool operator!=(const Iterator& other) const { return current != other.current; }
+    };
+    Iterator begin() const { return Iterator(head); }
+    Iterator end() const { return Iterator(nullptr); }
+
+    // proverka pust li spisok
+    bool isEmpty() const {
+        return head == nullptr;
+    }
+};
+
+//212-Simonov-Artem
+class GaussianProcessor {
+public:
+    // metod dobavleniya gaussa v spisok
+    //SinglyLinkedList& gaussians: Ssilka na spisok gaussovih funkciy, kuda budet dobavlen noviy element
+    void addGauss(SinglyLinkedList& gaussians, double h, double x0, double y0, double sigma_x, double sigma_y) {
+        Gauss gauss(h, x0, y0, sigma_x, sigma_y);
+        gaussians.add(gauss); // dobavlyaem gauss v spisok
+
+        std::cout << "Gaussian added with parameters: h=" << h
+                  << ", x0=" << x0 << ", y0=" << y0
+                  << ", sigma_x=" << sigma_x << ", sigma_y=" << sigma_y << ".\n";
+    }
+
+    // metod generacii polya na osnove spiska gaussov
+    void generate(Field* field, const SinglyLinkedList& gaussians) {
+        if (!field) {
+            std::cerr << "Error: Field not initialized. Please run 'init' first.\n";
+            return;
+        }
+
+        int index = 0;
+        gaussians.forEach([&](const Gauss& g) {
+            std::cout << "Processing Gaussian " << ++index << ".\n";
+
+          for (int x = 0; x < field->length; ++x) {
+    for (int y = 0; y < field->width; ++y) {
+        // ogranichenie na diapazon
+        if (std::abs(x - g.x0) > 3 * g.sigma_x || std::abs(y - g.y0) > 3 * g.sigma_y) {
+            continue; // propuskaem tochki vne diapazona
+        }
+
+        // vichislenie znacheniya Gaussa
+        double kx = (x - g.x0) / g.sigma_x;
+        double ky = (y - g.y0) / g.sigma_y;
+        double exponent = -0.5 * (kx * kx + ky * ky);
+        if (exponent < -100) { // esli exp sllishkom mala
+            exponent = -100;
+        }
+
+        double value = g.h * std::exp(exponent);
+        field->pixels[x][y] += value;
+    }
+   }
+    std::cout << "Gaussian " << index << " processed.\n";
+  }
+  );
+ }
+};
+
+//212-Simonov-Artem
+class Gnuplot {
+public:
+    static void gnuplot(const Field* field, const std::string& filename) {
+        if (!field) {
+            std::cerr << "Error: Field not initialized. Please run 'init' first.\n";
+            return;
+        }
+
+        std::ofstream outFile(filename);
+        if (!outFile.is_open()) {
+            std::cerr << "Error opening file for Gnuplot.\n";
+            return;
+        }
+
+        for (int x = 0; x < field->length; ++x) {
+            for (int y = 0; y < field->width; ++y) {
+                outFile << x << " " << y << " " << field->pixels[x][y] << "\n";
+            }
+            outFile << "\n";
+        }
+
+        outFile.close();
+        std::cout << "Data written to file " << filename << "\n";
+    }
+
+
+};
+
+//212-Simonov-Artem
+class BMP {
+public:
+    void saveToBMP(const Field* field, const std::string& filename) {
+    if (!field) {
+        std::cerr << "Error: Field not initialized. Please run 'init' first.\n";
+        return;
+    }
+
+    int width = field->width;
+    int height = field->length;
+    //poluchaem shirinu i visotu polya
+
+    BMPHeader header;
+    BMPInfoHeader infoHeader;
+    // sozdaem obiekti zagolovka i info ob izobrazhenii
+
+    header.bfSize = sizeof(BMPHeader) + sizeof(BMPInfoHeader) + width * height * 3;
+    infoHeader.biWidth = width;
+    infoHeader.biHeight = -height; // ottricatelnoe znachenie dlya pravilnogo otobrazheniya
+    infoHeader.biSizeImage = width * height * 3;
+
+    std::ofstream file(filename, std::ios::binary);
+    // otkrivaem fail dlya zapisi v binarnim rezhime
+
+    if (!file) {
+        std::cerr << "Error opening file for writing BMP.\n";
+        return;
+    } // proveryaem uspechnoe otkritie faila
+
+    file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+    file.write(reinterpret_cast<const char*>(&infoHeader), sizeof(infoHeader));
+    // zapisivaem zagolovki
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // znachenie pixelya preobrazovivaetsya v [0, 255] s pomoshyu std::min i std::max
+            uint8_t r = static_cast<uint8_t>(std::min(std::max(field->pixels[y][x] * 255, 0.0), 255.0));
+            uint8_t g = r;
+            uint8_t b = r;
+
+            file.write(reinterpret_cast<const char*>(&b), sizeof(uint8_t));
+            file.write(reinterpret_cast<const char*>(&g), sizeof(uint8_t));
+            file.write(reinterpret_cast<const char*>(&r), sizeof(uint8_t));
+        }
+
+        // dobavlyaem viravnivanie dlya 4 baita
+        for (int i = 0; i < (4 - (width * 3) % 4) % 4; ++i) {
+            uint8_t padding = 0;
+            file.write(reinterpret_cast<const char*>(&padding), sizeof(uint8_t));
+        }
+    }
+
+    file.close();
+    std::cout << "Data saved to BMP file: " << filename << "\n";
+}
+    //funciya dlya chteniya
+    Field* loadFromBMP(const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        std::cerr << "Error: Unable to open BMP file for reading.\n";
+        return nullptr;
+    }
+
+    BMPHeader header;
+    BMPInfoHeader infoHeader;
+
+    file.read(reinterpret_cast<char*>(&header), sizeof(BMPHeader));
+    file.read(reinterpret_cast<char*>(&infoHeader), sizeof(BMPInfoHeader));
+
+
+    if (header.bfType != 0x4D42) {
+        std::cerr << "Error: Not a valid BMP file.\n";
+        return nullptr;
+    } // proverka na bmp BMP
+
+    int width = infoHeader.biWidth;
+    int height = std::abs(infoHeader.biHeight);
+
+    Field* field = new Field(width, height);
+    // sozdaem pole s zadannimi razmerami
+
+    int padding = (4 - (width * 3) % 4) % 4;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t b, g, r;
+            file.read(reinterpret_cast<char*>(&b), sizeof(uint8_t));
+            file.read(reinterpret_cast<char*>(&g), sizeof(uint8_t));
+            file.read(reinterpret_cast<char*>(&r), sizeof(uint8_t));
+            field->pixels[y][x] = static_cast<double>(r) / 255.0;
+        }
+        file.ignore(padding); // propuskaem viravnivanie
+    }
+
+    file.close();
+    std::cout << "Field loaded from BMP file: " << filename << "\n";
+    return field;
+}
+};
+
+//212-Simonov-Artem
+class WaveAnalyzer {
+public:
+    // Binarizaciya polya
+    static void binarize(Field* field, double threshold) {
+        if (!field) {
+            std::cerr << "Error: Field not initialized.\n";
+            return;
+        }
+
+        for (auto& row : field->pixels) {
+            for (auto& pixel : row) {
+                pixel = (pixel > threshold) ? 1.0 : 0.0;
+            } //kajdiy pixel sravnivaetsya s porogom threshold
+            //esli znachenie pixelya bolshe poroga to =1, esli menshe, to =0
+        }
+        std::cout << "Field binarized with threshold: " << threshold << "\n";
+    }
+
+    // poisk svyaznih komponent metodom volni
+    static void findConnectedComponents(Field* field) {
+        if (!field) {
+            std::cerr << "Error: Field not initialized.\n";
+            return;
+        }
+        //metka kajdoy naydennoy componenti
+        int componentLabel = 2; // nachinaem s metki 2 (1 — edinici, 0 — nuli)
+        //razmeri polya
+        int rows = field->length;
+        int cols = field->width;
+//inicializiruem dvumerniy vector dlya hraneniya metok pixeley i zapolnyaem ego 0
+        std::vector<std::vector<int>> labels(rows, std::vector<int>(cols, 0));
+
+        //vector dlya hraneniya vseh komponent
+        std::vector<std::vector<std::pair<int, int>>> components; //soderjit pari koordinat vseh pixeley, vhodyashih v komponentu
+
+        for (int x = 0; x < rows; ++x) {
+            for (int y = 0; y < cols; ++y) {
+                    //esli pixel = 1 i ne pomechen, to ishem komponentu
+                if (field->pixels[x][y] == 1.0 && labels[x][y] == 0) {
+                    // naidena novaya komponenta
+                    std::vector<std::pair<int, int>> currentComponent;
+            //ochered dlya hraneniya neobrabotannih pixeley
+                    std::queue<std::pair<int, int>> wave;
+                    //dobavili v ochered i pometili
+                    wave.push({x, y});
+                    labels[x][y] = componentLabel;
+
+                    // rasprostranyaem volnu
+                    while (!wave.empty()) { //poka ochered ne pusta
+                            //berem tekushiy pixel
+                        auto current = wave.front();
+                        wave.pop();
+                        int cx = current.first; // koordinati x
+                        int cy = current.second; // koordinatu y
+                        currentComponent.push_back(current);
+
+                        // proveryaem sosedey (4 napravleniya)
+                        // 1) nahoditsya li pixel vnutri granici polya
+                        // 2) yavlyaetsya li on chastyu componenti i ne bil li on pomechen
+                        //esli usloviya vipolneni, to dobavlyaem v ochered
+                        //cx i cy - koordinaty tekushego pixelya po x i y
+                        //nx i ny - koordinaty sosednego pixelya po x i y
+                        //dx i dy - smesheniya ot tekushego pixelya k sosedyam, oni ravni 1 ili -1
+                        //dx: -1 verhniy sosed, 0 sam pixel, 1 nizhniy sosed
+                        //dy: -1 leviy, 0 sam pixel, 1 praviy
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            for (int dy = -1; dy <= 1; ++dy) {
+                                if ((dx == 0 || dy == 0) && (dx != 0 || dy != 0)) { // tolko gorizontalnie i verticalnie sosedi
+                                    int nx = cx + dx, ny = cy + dy;
+                                    if (nx >= 0 && nx < rows && ny >= 0 && ny < cols &&
+                                        field->pixels[nx][ny] == 1.0 && labels[nx][ny] == 0) {
+                                        wave.push({nx, ny});
+                                        labels[nx][ny] = componentLabel;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    components.push_back(currentComponent);
+                    componentLabel++;
+                }
+            }
+        }
+
+        // vivodin result
+        std::cout << "Found " << components.size() << " connected components.\n";
+        for (size_t i = 0; i < components.size(); ++i) {
+            std::cout << "Component " << i + 1 << " contains " << components[i].size() << " pixels.\n";
+        }
+    }
+};
+
+//212-Simonov-Artem
+// uzel spiska matric
+struct ListNode {
+    std::vector<std::vector<double>> matrix; // matrica
+    std::unique_ptr<ListNode> next;         // ukazatel na next uzel
+
+    ListNode(const std::vector<std::vector<double>>& mat) : matrix(mat), next(nullptr) {}
+};
+
+//212-Simonov-Artem
+// class dlya spiska svyznih komponent
+class LinkedList {
+public:
+    // dobavit matricu v spisok
+    void add(const std::vector<std::vector<double>>& matrix) {
+        auto newNode = std::make_unique<ListNode>(matrix);
+        if (!head) {
+            head = std::move(newNode);
+        } else {
+            ListNode* current = head.get();
+            while (current->next) {
+                current = current->next.get();
+            }
+            current->next = std::move(newNode);
+        }
+    }
+
+    // vse matrici kak vector
+    std::vector<std::vector<std::vector<double>>> getAllMatrices() const {
+        std::vector<std::vector<std::vector<double>>> matrices;
+        const ListNode* current = head.get();
+        while (current) {
+            matrices.push_back(current->matrix);
+            current = current->next.get();
+        }
+        return matrices;
+    }
+
+    // vivod spiska
+    void print() const {
+        const ListNode* current = head.get();
+        int index = 1;
+        while (current) {
+            std::cout << "Matrix " << index++ << ":\n";
+            for (const auto& row : current->matrix) {
+                for (double value : row) {
+                    std::cout << value << " ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << "\n";
+            current = current->next.get();
+        }
+    }
+
+private:
+    std::unique_ptr<ListNode> head = nullptr; // ukazatel na nachalo spiska
+};
+
+//212-Simonov-Artem
+// class dlya k-sred
+class KMeans {
+public:
+    // k-sred
+    void fit(const std::vector<std::vector<std::vector<double>>>& matrices, int k) {
+        if (matrices.empty()) return;
+
+        int n = matrices.size();
+        std::vector<int> assignments(n, -1);
+        std::vector<std::vector<std::vector<double>>> centroids(k);
+
+        // inicializaciya sluchainih centroidov
+        initializeCentroids(matrices, centroids, k);
+
+        bool changed;
+        do {
+            changed = false;
+
+            // prisvaevaem matrici blizhaishim centroidam
+            for (int i = 0; i < n; ++i) {
+                int closest = findClosestCentroid(matrices[i], centroids);
+                if (assignments[i] != closest) {
+                    assignments[i] = closest;
+                    changed = true;
+                }
+            }
+
+            // obnovlyaem centroidi
+            updateCentroids(matrices, assignments, centroids, k);
+        } while (changed);
+    }
+    // k-sred s yadrami
+    void fitKernel(const std::vector<std::vector<std::vector<double>>>& matrices,
+                   int k,
+                   const std::function<double(const std::vector<std::vector<double>>&,
+                                              const std::vector<std::vector<double>>&)>& kernel) {
+        if (matrices.empty()) return;
+
+        int n = matrices.size();
+        std::vector<int> assignments(n, -1);
+        std::vector<std::vector<std::vector<double>>> centroids(k);
+
+        // inicializaciya sluchainyh centroidov
+        initializeCentroids(matrices, centroids, k);
+
+        bool changed;
+        do {
+            changed = false;
+
+            // prisvaivaem matrici novim centroidam
+            for (int i = 0; i < n; ++i) {
+                int closest = findClosestCentroidKernel(matrices[i], centroids, kernel);
+                if (assignments[i] != closest) {
+                    assignments[i] = closest;
+                    changed = true;
+                }
+            }
+
+            // obnovlyaem centroidi na osnove yadra
+            updateCentroidsKernel(matrices, assignments, centroids, k, kernel);
+        } while (changed);
+    }
+
+    void initializeCentroids(const std::vector<std::vector<std::vector<double>>>& matrices,
+                             std::vector<std::vector<std::vector<double>>>& centroids, int k) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, matrices.size() - 1);
+
+        for (int i = 0; i < k; ++i) {
+            centroids[i] = matrices[dis(gen)];
+        }
+    }
+
+    int findClosestCentroid(const std::vector<std::vector<double>>& matrix,
+                            const std::vector<std::vector<std::vector<double>>>& centroids) {
+        int closest = 0;
+        double minDist = std::numeric_limits<double>::max();
+
+        for (int i = 0; i < centroids.size(); ++i) {
+            double dist = euclideanDistance(matrix, centroids[i]);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = i;
+            }
+        }
+
+        return closest;
+    }
+
+    double euclideanDistance(const std::vector<std::vector<double>>& a,
+                             const std::vector<std::vector<double>>& b) {
+        double dist = 0.0;
+        for (size_t i = 0; i < a.size(); ++i) {
+            for (size_t j = 0; j < a[i].size(); ++j) {
+                dist += (a[i][j] - b[i][j]) * (a[i][j] - b[i][j]);
+            }
+        }
+        return sqrt(dist);
+    }
+
+    void updateCentroids(const std::vector<std::vector<std::vector<double>>>& matrices,
+                         const std::vector<int>& assignments,
+                         std::vector<std::vector<std::vector<double>>>& centroids, int k) {
+        std::vector<std::vector<std::vector<double>>> newCentroids(k);
+        std::vector<int> counts(k, 0);
+
+        for (int i = 0; i < matrices.size(); ++i) {
+            int cluster = assignments[i];
+            if (newCentroids[cluster].empty()) {
+                newCentroids[cluster] = matrices[i];
+            } else {
+                for (size_t x = 0; x < matrices[i].size(); ++x) {
+                    for (size_t y = 0; y < matrices[i][x].size(); ++y) {
+                        newCentroids[cluster][x][y] += matrices[i][x][y];
+                    }
+                }
+            }
+            counts[cluster]++;
+        }
+
+        for (int i = 0; i < k; ++i) {
+            if (counts[i] > 0) {
+                for (size_t x = 0; x < newCentroids[i].size(); ++x) {
+                    for (size_t y = 0; y < newCentroids[i][x].size(); ++y) {
+                        newCentroids[i][x][y] /= counts[i];
+                    }
+                }
+            }
+        }
+
+        centroids = std::move(newCentroids);
+    }
+
+    int findClosestCentroidKernel(const std::vector<std::vector<double>>& matrix,
+                                  const std::vector<std::vector<std::vector<double>>>& centroids,
+                                  const std::function<double(const std::vector<std::vector<double>>&,
+                                                             const std::vector<std::vector<double>>)> &kernel) {
+        int closest = 0;
+        double maxSimilarity = -std::numeric_limits<double>::max();
+
+        for (int i = 0; i < centroids.size(); ++i) {
+            double similarity = kernel(matrix, centroids[i]);
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity;
+                closest = i;
+            }
+        }
+
+        return closest;
+    }
+
+    void updateCentroidsKernel(const std::vector<std::vector<std::vector<double>>>& matrices,
+                               const std::vector<int>& assignments,
+                               std::vector<std::vector<std::vector<double>>>& centroids, int k,
+                               const std::function<double(const std::vector<std::vector<double>>&,
+                                                          const std::vector<std::vector<double>>&)> &kernel) {
+        std::vector<int> counts(k, 0);
+        std::vector<std::vector<std::vector<double>>> newCentroids(k);
+
+        for (int i = 0; i < k; ++i) {
+            newCentroids[i].resize(matrices[0].size(), std::vector<double>(matrices[0][0].size(), 0.0));
+        }
+
+        for (int i = 0; i < matrices.size(); ++i) {
+            int cluster = assignments[i];
+            counts[cluster]++;
+            for (size_t x = 0; x < matrices[i].size(); ++x) {
+                for (size_t y = 0; y < matrices[i][x].size(); ++y) {
+                    newCentroids[cluster][x][y] += matrices[i][x][y];
+                }
+            }
+        }
+
+        for (int i = 0; i < k; ++i) {
+            if (counts[i] > 0) {
+                for (size_t x = 0; x < newCentroids[i].size(); ++x) {
+                    for (size_t y = 0; y < newCentroids[i][x].size(); ++y) {
+                        newCentroids[i][x][y] /= counts[i];
+                    }
+                }
+            }
+        }
+
+        centroids = std::move(newCentroids);
+    }
+};
+
+//212-Simonov-Artem
+class Control {
+private:
+
+    SinglyLinkedList gaussians; // spisok dlya hraneniya gaussov
+    Field* field;               // ukazatel na pole
+    bool isInitialized;         // flag inicializacii polya
+    UserInteraction ui;         // class dlya vzaimodeistviya s polem
+    FieldManager fm;            // metod dlya upravleniya polem
+    GaussianProcessor gp;       // metod dlya raboti s gaussami
+    Gnuplot g;
+    BMP b;
+    Config& config;
+    double defaultH;
+    double defaultX0;
+    double defaultY0;
+    double defaultSigmaX;
+    double defaultSigmaY;
+    std::string logFileControl;
+    std::ofstream logFile2;
+   LinkedList matrixList;                // список матриц
+   KMeans kmeans;                        // для K-средних
+public:
+    // konstructor
+    Control(Config& cfg)
+        : field(nullptr), isInitialized(false), config(cfg) {
+        defaultH = std::stod(config.get("defaultH", "1.0"));
+        defaultX0 = std::stod(config.get("defaultX0", "50.0"));
+        defaultY0 = std::stod(config.get("defaultY0", "50.0"));
+        defaultSigmaX = std::stod(config.get("defaultSigmaX", "1.0"));
+        defaultSigmaY = std::stod(config.get("defaultSigmaY", "1.0"));
+
+
+        logFileControl = config.get("logFileC");
+        logFile2.open(logFileControl);
+
+        if (!logFile2.is_open()) {
+            std::cerr << "Oshibka: ne udalos otkrit fail dlya zapisi " << logFileControl << "\n"; }
+
+
+                    logFile2 << "tekushee vremya: " << std::setfill('0') << std::setw(2) << ltm->tm_hour
+                << ":" << std::setw(2) << ltm->tm_min << ":" << std::setw(2) << ltm->tm_sec << std::endl;
+        }
+
+
+    // dobavlyaem gauss
+    void addGauss(double h = 1, double x0 = 50, double y0 = 50, double sigma_x = 1.0, double sigma_y = 1.0) {
+    gp.addGauss(gaussians, h, x0, y0, sigma_x, sigma_y);
+    logFile2 << "[" << getCurrentTime() << "] " "addGauss otrabotal" << std::endl;
+}
+
+
+    // inicializaciya polya
+    void init(int length, int width) {
+        fm.init(field, length, width, isInitialized);
+        logFile2 << "[" << getCurrentTime() << "] " "init otrabotal" << std::endl;
+    }
+
+    // generaciya polya na osnove gaussa
+    void generate() {
+        gp.generate(field, gaussians);
+        logFile2 << "[" << getCurrentTime() << "] " "generate otrabotal" << std::endl;
+    }
+
+    // gnuplot
+    void gnuplot(const std::string& filename) {
+        g.gnuplot(field, filename);
+        logFile2 << "[" << getCurrentTime() << "] " "gnuplot otrabotal" << std::endl;
+    }
+
+    // sohranenie v bmp
+    void saveToBMP(const std::string& filename) {
+        b.saveToBMP(field, filename);
+        logFile2 << "[" << getCurrentTime() << "] " "saveToBMP otrabotal" << std::endl;
+    }
+
+    // Load from BMP
+    void lfrombmp(const std::string& filename) {
+        b.loadFromBMP(filename);
+        logFile2 << "[" << getCurrentTime() << "] loadFromBMP otrabotal" << std::endl;
+    }
+
+   // poluchaem ssilku na spisok gaussov
+    SinglyLinkedList& getGaussians() {
+        return gaussians;
+    }
+
+    // poluchaem ukazatel na pole
+    Field* getField() const {
+        return field;
+    }
+
+    //binariziruem pole
+    void binarize(double threshold) {
+        WaveAnalyzer::binarize(field, threshold);
+        logFile2 << "[" << getCurrentTime() << "] " "bin otrabotal" << std::endl;
+    }
+
+ //zapuskaem volnu i ischem komponenti
+    void wave() {
+        WaveAnalyzer::findConnectedComponents(field);
+        logFile2 << "[" << getCurrentTime() << "] " "wave otrabotal" << std::endl;
+    }
+
+   void addMatrix(const std::vector<std::vector<double>>& matrix) {
+        matrixList.add(matrix);
+    }
+
+     void runKMeansClustering(int k) {
+        auto matrices = matrixList.getAllMatrices();
+        kmeans.fit(matrices, k);
+        std::cout << "KMeans otrabotal\n";
+    }
+
+    void runKernelKMeansClustering(int k, const std::function<double(const std::vector<std::vector<double>>&,
+                                                                     const std::vector<std::vector<double>>&)>& kernel) {
+        auto matrices = matrixList.getAllMatrices();
+        kmeans.fitKernel(matrices, k, kernel);
+        std::cout << "Kernel KMeans otrabotal\n";
+    }
+
+};
+
+//212-Simonov-Artem
+class Interface {
+public:
+    void run() {
+        Config config("config.txt");
+        Control control(config);
+        UserInteraction w;
+        FieldManager fm;
+        std::string logFileInterface = config.get("logFileInterface");
+        std::ofstream logFile1(logFileInterface);
+
+        if (!logFile1.is_open()) {
+            std::cerr << "oshibka otkritiya faila!\n";
+            return;
+        }
+
+        logFile1 << "tekushee vremya: " << std::setfill('0') << std::setw(2) << ltm->tm_hour
+                 << ":" << std::setw(2) << ltm->tm_min << ":" << std::setw(2) << ltm->tm_sec << std::endl;
+
+        std::string inputMethod;
+        std::cout << "vvedite 'f' dlya vvoda is faila 'k' dlya vvoda s klaviaturi: ";
+        std::cin >> inputMethod;
+
+        logFile1 << "[" << getCurrentTime() << "] " "METOD VVODA: " << inputMethod << std::endl;
+        w.waitForKeyPress();
+
+        if (inputMethod == "f") {
+            std::string inputFilename = config.get("filename");
+            logFile1 << "Imya faila: " << inputFilename << std::endl;
+            loadGaussiansFromFile(control.getGaussians(), inputFilename, logFile1);
+            loadCommandsFromFile(inputFilename, logFile1, control);
+        } else if (inputMethod == "k") {
+            loadGaussiansFromKeyboard(control, logFile1);
+        } else {
+            std::cerr << "Neverniy vvod.\n";
+            logFile1 << "oshibka: Neverniy vvod.\n";
+            return;
+        }
+
+        std::string command;
+        while (true) {
+            std::cout << "Vvedite comandu (init - sozdat pole, g - dobavit gauss, generate - nalojhit gaussi na pole, gnuplot - kartinka v gnuplote, bmp - kartinka v BMP, load - schitat s bmp, bin - otrezaem, wave - volna, kmeans - gruppirovka, exit - vihod): ";
+            std::cin >> command;
+            logFile1 << "[" << getCurrentTime() << "] " "Komanda: " << command << std::endl;
+
+            if (command == "init") {
+                int length, width;
+                std::cout << "vvedite razmeri polya: ";
+                std::cin >> length >> width;
+                control.init(length, width);
+                w.waitForKeyPress();
+            } else if (command == "g") {
+                double h, x0, y0, sigma_x, sigma_y;
+                std::cout << "vvedite parametri gaussa (h x0 y0 sigma_x sigma_y): ";
+                std::cin >> h >> x0 >> y0 >> sigma_x >> sigma_y;
+                control.addGauss(h, x0, y0, sigma_x, sigma_y);
+                logFile1 << "[" << getCurrentTime() << "] " "Dobavlen gauss: h=" << h << ", x0=" << x0 << ", y0=" << y0
+                         << ", sigma_x=" << sigma_x << ", sigma_y=" << sigma_y << std::endl;
+                w.waitForKeyPress();
+            } else if (command == "generate") {
+                control.generate();
+                w.waitForKeyPress();
+            } else if (command == "gnuplot") {
+                std::string gnuplotFilename = config.get("gnuplot_base");
+                control.gnuplot(gnuplotFilename);
+                logFile1 << "[" << getCurrentTime() << "] " "Imya faila dlya gnuplota: " << gnuplotFilename << std::endl;
+                w.waitForKeyPress();
+            } else if (command == "bmp") {
+                std::string bmpFilename = config.get("bmp_filename");
+                control.saveToBMP(bmpFilename);
+                logFile1 << "[" << getCurrentTime() << "] " "Imya faila dlya BMP: " << bmpFilename << std::endl;
+                w.waitForKeyPress();
+            }
+            else if (command == "load") {
+                std::string bmpFilename2 = config.get("bmp_filename2");
+                control.lfrombmp(bmpFilename2);
+                logFile1 << "[" << getCurrentTime() << "] " "Imya faila schitivaniya s BMP: " << bmpFilename2 << std::endl;
+                w.waitForKeyPress();
+            }
+            else if (command == "bin") {
+                double threshold;
+                std::cout << "Enter binarization threshold: ";
+                std::cin >> threshold;
+                control.binarize(threshold);
+                w.waitForKeyPress();
+            } else if (command == "wave") {
+                control.wave();
+                w.waitForKeyPress();
+            } else if (command == "kmeans") {
+                int k;
+                std::cout << "vvedite kolichestvo klasterov (k) i znachenie r: ";
+                std::cin >> k;
+                control.runKMeansClustering(k);
+                logFile1 << "[" << getCurrentTime() << "] " "KMeans clustering performed with k=" << k << "." << std::endl;
+                w.waitForKeyPress();
+            } /*else if (command == "kernel_kmeans") {
+                int k;
+                std::cout << "vvedite kolichestvo klasterov (k): ";
+                std::cin >> k;
+                control.runKernelKMeansClustering(k));
+                logFile1 << "[" << getCurrentTime() << "] " "Kernel KMeans clustering performed with k=" << k << "." << std::endl;
+                w.waitForKeyPress();
+            } */
+             else if (command == "exit") {
+                std::cout << "vixod is programmi.\n";
+                logFile1 << "[" << getCurrentTime() << "] " "vixod is programmi.\n";
+                logFile1.close();
+                return;
+            } else {
+                std::cerr << "oshibka: komanda ne raspoznana.\n";
+                logFile1 << "[" << getCurrentTime() << "] " "oshibka: komanda ne raspoznana.\n";
+            }
+        }
+    }
+
+private:
+    std::ofstream logFile1;
+
+    void loadGaussiansFromFile(SinglyLinkedList& gaussians, const std::string& filename, std::ofstream& logFile) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "oshibka otkritiya faila.\n";
+            logFile << "oshibka otkritiya faila.\n";
+            return;
+        }
+
+        std::string line;
+        bool readingGaussians = true;  // flag
+
+        while (std::getline(file, line)) {
+
+            if (line.empty()) {
+                continue;
+            }
+
+
+            if (line.find("init") != std::string::npos ||
+                line.find("generate") != std::string::npos ||
+                line.find("gnuplot") != std::string::npos ||
+                line.find("bmp") != std::string::npos ||
+                line.find("load") != std::string::npos ||
+                line.find("bin") != std::string::npos ||
+                line.find("wave") != std::string::npos ||
+                line.find("kmeans") != std::string::npos ||
+                line.find("exit") != std::string::npos) {
+                readingGaussians = false;
+            }
+
+            if (readingGaussians) {
+
+                std::istringstream iss(line);
+                double h, x0, y0, sigma_x, sigma_y;
+                if (iss >> h >> x0 >> y0 >> sigma_x >> sigma_y) {
+                    gaussians.add(Gauss(h, x0, y0, sigma_x, sigma_y));
+                    logFile << "[" << getCurrentTime() << "] " "dobavlen gauss is faila: h=" << h << ", x0=" << x0 << ", y0=" << y0
+                             << ", sigma_x=" << sigma_x << ", sigma_y=" << sigma_y << std::endl;
+                } else {
+                    logFile << "[" << getCurrentTime() << "] " "oshibka: nepravilniy format stroki s gaussom: " << line << "\n";
+                    std::cerr << "oshibka: nepravilniy format stroki s gaussom: " << line << "\n";
+                }
+            } else {
+
+                logFile << "[" << getCurrentTime() << "] " "Komanda: " << line << std::endl;
+            }
+        }
+
+        file.close();
+        std::cout << "gaussi zagruzheni is faila.\n";
+    }
+
+
+    void loadCommandsFromFile(const std::string& filename, std::ofstream& logFile, Control& control) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "oshibka otkritiya faila.\n";
+            return;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+
+            if (line.empty()) {
+                continue;
+            }
+
+            std::istringstream iss(line);
+            std::string command;
+            iss >> command;
+
+            if (command == "init") {
+                int length, width;
+                if (iss >> length >> width) {
+                    control.init(length, width);
+                    logFile << "[" << getCurrentTime() << "] " "Field initialized with size " << length << "x" << width << std::endl;
+                }
+            } else if (command == "generate") {
+                control.generate();
+                logFile << "[" << getCurrentTime() << "] " "Gaussians generated on the field." << std::endl;
+            } else if (command == "gnuplot") {
+                std::string gnuplotFilename;
+                if (iss >> gnuplotFilename) {
+                    control.gnuplot(gnuplotFilename);
+                    logFile << "[" << getCurrentTime() << "] " "Gnuplot file saved: " << gnuplotFilename << std::endl;
+                }
+            } else if (command == "bmp") {
+                std::string bmpFilename;
+                if (iss >> bmpFilename) {
+                    control.saveToBMP(bmpFilename);
+                    logFile << "[" << getCurrentTime() << "] " "BMP file saved: " << bmpFilename << std::endl;
+                }
+            }
+            else if (command == "load") {
+                std::string bmpFilename2;
+                if (iss >> bmpFilename2) {
+                    control.lfrombmp(bmpFilename2);
+                    logFile << "[" << getCurrentTime() << "] " "BMP file loaded: " << bmpFilename2 << std::endl;
+                }
+            }
+            else if (command == "bin") {
+                double threshold;
+                if (iss >> threshold) {
+                    control.binarize(threshold);
+                    logFile << "[" << getCurrentTime() << "] " "Threshold for binarization set: " << threshold << std::endl;
+                }
+            } else if (command == "wave") {
+                control.wave();
+                logFile << "[" << getCurrentTime() << "] " "Wave function applied." << std::endl;
+            } else if (command == "kmeans") {
+                int k;
+                if (iss >> k) {
+                control.runKMeansClustering(k);
+                logFile << "[" << getCurrentTime() << "] " "klasterizaciya proshla" << std::endl;
+                 }
+            } else if (command == "exit") {
+                logFile << "[" << getCurrentTime() << "] " "Exiting program." << std::endl;
+                std::cout << "Exiting program.\n";
+                file.close();
+                return;
+            }
+        }
+
+        file.close();
+        std::cout << "komandy zagruzheni is faila.\n";
+    }
+
+void loadGaussiansFromKeyboard(Control& control, std::ofstream& logFile) {
+        double h, x0, y0, sigma_x, sigma_y;
+        char addMore = 'y';
+        while (addMore == 'y') {
+            std::cout << "vvedite parametri gaussa (h x0 y0 sigma_x sigma_y): ";
+            std::cin >> h >> x0 >> y0 >> sigma_x >> sigma_y;
+            control.addGauss(h, x0, y0, sigma_x, sigma_y);
+
+            logFile << "[" << getCurrentTime() << "] " "dobavlen gauss s klaviaturi: h=" << h << ", x0=" << x0 << ", y0=" << y0
+                     << ", sigma_x=" << sigma_x << ", sigma_y=" << sigma_y << std::endl;
+
+            std::cout << "dobavit eshe gauss? (y/n): ";
+            std::cin >> addMore;
+        }
+    }
+
+};
+
+
+//212-Simonov-Artem
+int main() {
+
+    Interface interface;
+    interface.run();
+
+    return 0;
+}
+
